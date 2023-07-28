@@ -1,62 +1,118 @@
-## Rate Limiting
+## Implement cache
 
-To add rate limiting to your API, you can use the express-rate-limit middleware.
+![Alt text](image-16.png)
 
-This will help prevent abuse of your API by limiting the number of requests a client can make within a certain time window.
+![Alt text](image-17.png)
 
-Let's integrate rate limiting into the API:
+To implement caching in your API using memory-cache, we'll use it to store the results of expensive database queries or calculations temporarily in memory.
 
-## Install the Rate Limiting Middleware
+This can help reduce the load on the database and improve the API's response time. Let's integrate memory-cache into the API:
 
-Install the express-rate-limit middleware:
+## Install the Memory Cache Dependency
+
+Install the memory-cache package
 
 ```bash
-npm install express-rate-limit
+npm install memory-cache
 ```
 
-## Configure Rate Limiting
+## Create a Cache Middleware
 
-In the `server.js` file, configure the rate limiting middleware for your API:
+In the middlewares folder, create a file named `cacheMiddleware.js`
 
 ```js
-// server.js
-const express = require("express");
-const dotenv = require("dotenv");
-const productRoutes = require("./src/routes/productRoutes");
-const userRoutes = require("./src/routes/userRoutes");
-const authMiddleware = require("./src/middlewares/authMiddleware");
-const connectToDatabase = require("./src/config/database");
-const rateLimit = require("express-rate-limit");
+// middlewares/cacheMiddleware.js
+const cache = require("memory-cache");
 
-dotenv.config();
-const app = express();
-const PORT = process.env.PORT || 3000;
+function cacheMiddleware(duration) {
+  return (req, res, next) => {
+    const key = "__express__" + req.originalUrl || req.url;
+    const cachedBody = cache.get(key);
 
-// Rate limiting configuration
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 requests per windowMs
-});
+    if (cachedBody) {
+      return res.json(cachedBody);
+    } else {
+      res.sendResponse = res.json;
+      res.json = (body) => {
+        cache.put(key, body, duration * 1000); // Convert seconds to milliseconds
+        res.sendResponse(body);
+      };
+      next();
+    }
+  };
+}
 
-// Apply rate limiting to all requests
-app.use(limiter);
-
-// Middleware
-app.use(express.json());
-
-// Connect to MongoDB
-connectToDatabase();
-
-// Routes
-app.use("/products", authMiddleware, productRoutes);
-app.use("/users", userRoutes);
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+module.exports = cacheMiddleware;
 ```
 
-In this example, we have limited each IP address to 10 requests per 15 minutes. Adjust the windowMs and max values as per your requirements.
+## Apply Caching to the Product Routes
 
-![Alt text](image-15.png)
+In the `routes/productRoutes.js` file, apply the cache middleware to the route that retrieves all products:
+
+```js
+// routes/productRoutes.js
+const express = require("express");
+const router = express.Router();
+const productController = require("../controllers/productController");
+const cacheMiddleware = require("../middlewares/cacheMiddleware");
+
+// Cache the response for 5 minutes (adjust the duration as needed)
+router.get("/", cacheMiddleware(300), productController.getAllProducts);
+
+// ... (other routes)
+```
+
+## Clear Cache When Data is Updated
+
+In some cases, you might want to clear the cache when data is updated to ensure that users get the latest information.
+
+For example, when a new product is added or an existing product is updated, you can clear the cache for the `/products` route:
+
+```js
+// controllers/productController.js
+const cache = require("memory-cache");
+
+class ProductController {
+  // ... (other methods)
+
+  async createProduct(req, res) {
+    try {
+      // ... (create product logic)
+
+      // Clear cache for /products route
+      cache.clear();
+
+      res.status(201).json(product);
+    } catch (err) {
+      res.status(500).json({ error: "Unable to create the product" });
+    }
+  }
+
+  async updateProduct(req, res) {
+    try {
+      // ... (update product logic)
+
+      // Clear cache for /products route
+      cache.clear();
+
+      res.json(product);
+    } catch (err) {
+      res.status(500).json({ error: "Unable to update the product" });
+    }
+  }
+
+  // ... (other methods)
+}
+```
+
+With these changes, your API now includes caching using memory-cache. Cached responses will be served from memory for a specified duration, reducing the load on the database and improving the API's performance. Remember to apply caching only to routes where it makes sense to use it and to clear the cache when relevant data is updated to ensure accurate results.
+
+## Test with Postman
+
+The 2nd request is much faster than the first request (around 30 times faster)
+
+First request
+![Alt text](image-18.png)
+
+Second request
+![Alt text](image-19.png)

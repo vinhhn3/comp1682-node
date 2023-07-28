@@ -1,10 +1,15 @@
 // controllers/productController.js
 const productRepository = require("../repositories/productRepository");
+const cache = require("memory-cache");
 
 class ProductController {
   async createProduct(req, res) {
     try {
       const product = await productRepository.createProduct(req.body);
+
+      // Clear cache for /products route
+      cache.clear();
+
       res.status(201).json(product);
     } catch (err) {
       res.status(500).json({ error: "Unable to create the product" });
@@ -41,6 +46,10 @@ class ProductController {
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
+
+      // Clear cache for /products route
+      cache.clear();
+
       res.json(product);
     } catch (err) {
       res.status(500).json({ error: "Unable to update the product" });
