@@ -36,6 +36,10 @@ Let's break down each folder and its purpose:
 
 `package.json`: This file is crucial in Node.js projects as it contains metadata about the project, including its dependencies, version, scripts, and more. It also defines the entry point of the application.
 
+The diagram below shows how these components work together
+
+![Alt text](image.png)
+
 ## Initialize Project and Install Dependencies
 
 Initialize a new Node.js project and install the required dependencies:
