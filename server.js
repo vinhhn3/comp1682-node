@@ -1,6 +1,5 @@
 // server.js
 const express = require("express");
-const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const productRoutes = require("./src/routes/productRoutes");
 const userRoutes = require("./src/routes/userRoutes");
