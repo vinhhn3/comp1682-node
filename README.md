@@ -1,205 +1,263 @@
-## Create Mongoose Model
+## Authentication with JSON WEB TOKEN (JWT)
 
-In the models folder, create a file named `product.js`:
+Update the folder structure to include the middlewares folder:
 
-```js
-// models/product.js
-const mongoose = require("mongoose");
-
-const productSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  description: { type: String, required: true },
-  price: { type: Number, required: true },
-  createdAt: { type: Date, default: Date.now },
-});
-
-const Product = mongoose.model("Product", productSchema);
-
-module.exports = Product;
+```bash
+project_root/
+  |- src/
+      |- controllers/
+      |- models/
+      |- repositories/
+      |- routes/
+      |- middlewares/
+  |- .env
+  |- package.json
+  |- server.js
 ```
 
-## Create the Repository
+`middlewares/`: This folder is where you place your custom middleware functions. A middleware function is essentially a JavaScript function that has access to the request (`req`), response (`res`), and the `next` function, which is used to pass control to the next middleware in the chain.
 
-In the repositories folder, create a file named `productRepository.js`
+The diagram below shows how middleware functions in the chain
+
+![Alt text](image-2.png)
+
+## What is Json Web Token (JWT)
+
+JWT stands for "JSON Web Token." It is a compact and self-contained way of representing information between two parties in a secure manner as a JSON object. JWTs are commonly used for authentication and authorization purposes in web applications.
+
+The structure of a JWT consists of three parts, separated by dots:
+
+`Header`: Contains metadata about the type of token and the cryptographic algorithm used to sign the token.
+Example:
+
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+```
+
+`Payload`: Contains the claims or information about the user or entity. There are three types of claims:
+
+```json
+{
+  "sub": "user123",
+  "name": "John Doe",
+  "admin": true
+}
+```
+
+`Signature`: To create the signature, the header, payload, and a secret (or private key) are used as input to a cryptographic algorithm specified in the header. The signature is used to verify the integrity of the token and to ensure that the token hasn't been tampered with.
+
+Example of a signature (not a real signature; just for illustration purposes):
+
+```
+HMACSHA256(
+  base64UrlEncode(header) + "." + base64UrlEncode(payload),
+  secret
+)
+```
+
+![Alt text](image-3.png)
+
+JWTs are typically used in authentication scenarios. When a user logs in, the server generates a JWT containing relevant information about the user and signs it using a secret key.
+
+The client then receives the JWT and includes it in subsequent requests to access protected resources on the server.
+
+The server can verify the authenticity of the token and extract the user information from it without the need to store user session data, resulting in a stateless authentication mechanism.
+
+![Alt text](image-4.png)
+
+## Install Additional Dependencies
+
+Install the required dependencies for authentication
+
+```
+npm install jsonwebtoken bcrypt
+```
+
+## Create the User Model
+
+In the models folder, create a file named `user.js`
 
 ```js
-// repositories/productRepository.js
-const Product = require("../models/product");
+// models/user.js
+const mongoose = require("mongoose");
 
-class ProductRepository {
-  async createProduct(data) {
-    return await Product.create(data);
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
+
+const User = mongoose.model("User", userSchema);
+
+module.exports = User;
+```
+
+## Create the User Repository
+
+In the repositories folder, create a file named `userRepository.js`:
+
+```js
+// repositories/userRepository.js
+const User = require("../models/user");
+
+class UserRepository {
+  async createUser(data) {
+    return await User.create(data);
   }
 
-  async getAllProducts() {
-    return await Product.find();
-  }
-
-  async getProductById(id) {
-    return await Product.findById(id);
-  }
-
-  async updateProduct(id, data) {
-    return await Product.findByIdAndUpdate(id, data, { new: true });
-  }
-
-  async deleteProduct(id) {
-    return await Product.findByIdAndDelete(id);
+  async getUserByUsername(username) {
+    return await User.findOne({ username });
   }
 }
 
-module.exports = new ProductRepository();
+module.exports = new UserRepository();
 ```
 
-## Create Express Routes
+## Create the Authentication Middleware
 
-In the routes folder, create a file named `productRoutes.js`
+In the middlewares folder, create a file named `authMiddleware.js`
 
 ```js
-// routes/productRoutes.js
+// middlewares/authMiddleware.js
+const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+
+dotenv.config();
+const secretKey = process.env.JWT_SECRET;
+
+function authMiddleware(req, res, next) {
+  const token = req.header("Authorization");
+
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const decoded = jwt.verify(token.replace("Bearer ", ""), secretKey);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: "Invalid token" });
+  }
+}
+
+module.exports = authMiddleware;
+```
+
+## Create the User Controller
+
+In the controllers folder, create the `userController.js` file to include user registration and authentication functions
+
+```js
+// controllers/userController.js
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const userRepository = require("../repositories/userRepository");
+const dotenv = require("dotenv");
+
+dotenv.config();
+const secretKey = process.env.JWT_SECRET;
+
+class UserController {
+  async registerUser(req, res) {
+    try {
+      const { username, password } = req.body;
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await userRepository.createUser({
+        username,
+        password: hashedPassword,
+      });
+      res.status(201).json({ message: "User registered successfully" });
+    } catch (err) {
+      res.status(500).json({ error: "Unable to register user" });
+    }
+  }
+
+  async loginUser(req, res) {
+    try {
+      const { username, password } = req.body;
+      const user = await userRepository.getUserByUsername(username);
+
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const token = jwt.sign(
+        { id: user._id, username: user.username },
+        secretKey,
+        { expiresIn: "1h" }
+      );
+      res.json({ token });
+    } catch (err) {
+      res.status(500).json({ error: "Unable to log in" });
+    }
+  }
+}
+
+module.exports = new UserController();
+```
+
+## Update the User Routes
+
+In the `routes` folder, update the `userRoutes.js` file to include routes for user registration and authentication
+
+```js
+// routes/userRoutes.js
 const express = require("express");
 const router = express.Router();
-const productController = require("../controllers/productController");
+const userController = require("../controllers/userController");
 
-// Create a new product
-router.post("/", productController.createProduct);
+// Register a new user
+router.post("/register", userController.registerUser);
 
-// Get all products
-router.get("/", productController.getAllProducts);
-
-// Get a product by ID
-router.get("/:id", productController.getProductById);
-
-// Update a product by ID
-router.put("/:id", productController.updateProduct);
-
-// Delete a product by ID
-router.delete("/:id", productController.deleteProduct);
+// Login user and get JWT token
+router.post("/login", userController.loginUser);
 
 module.exports = router;
 ```
 
-## Create Express Controllers
+## Protect the /products Route
 
-In the controllers folder, create a file named `productController.js`:
-
-```js
-// controllers/productController.js
-const productRepository = require("../repositories/productRepository");
-
-class ProductController {
-  async createProduct(req, res) {
-    try {
-      const product = await productRepository.createProduct(req.body);
-      res.status(201).json(product);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to create the product" });
-    }
-  }
-
-  async getAllProducts(req, res) {
-    try {
-      const products = await productRepository.getAllProducts();
-      res.json(products);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to fetch products" });
-    }
-  }
-
-  async getProductById(req, res) {
-    try {
-      const product = await productRepository.getProductById(req.params.id);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.json(product);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to fetch the product" });
-    }
-  }
-
-  async updateProduct(req, res) {
-    try {
-      const product = await productRepository.updateProduct(
-        req.params.id,
-        req.body
-      );
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.json(product);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to update the product" });
-    }
-  }
-
-  async deleteProduct(req, res) {
-    try {
-      const product = await productRepository.deleteProduct(req.params.id);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.sendStatus(204);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to delete the product" });
-    }
-  }
-}
-
-module.exports = new ProductController();
-```
-
-## Set Up Express Server
-
-In the `server.js` file, set up the Express server:
+In the `server.js` file, use the authentication middleware to protect the `/products` route
 
 ```js
 // server.js
-const express = require("express");
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const productRoutes = require("./src/routes/productRoutes");
 
-dotenv.config();
-const app = express();
-const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI;
+// ... (previous imports)
+const userRoutes = require("./src/routes/userRoutes");
+// ... (remaining imports)
 
-// Middleware
-app.use(express.json());
+// ... (previous code)
 
-// Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .catch((err) => {
-    console.error("Error connecting to MongoDB:", err);
-    process.exit(1);
-  });
+const authMiddleware = require("./src/middlewares/authMiddleware");
+app.use("/products", authMiddleware, productRoutes);
+app.use("/users", userRoutes);
 
-// Routes
-app.use("/products", productRoutes);
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+// ... (remaining code)
 ```
 
-## Start the Server
+With these changes, your API now has user registration, login functionality, and the `/products` route is protected using JWT Bearer token authentication. When you make a request to `/products`, you need to include a valid JWT token in the Authorization header to access the route.
 
-Run the server using the following command:
+## Test with Postman
 
-```bash
-node server.js
-```
+Now, if we don't login first, we cannot access the `/products` route
 
-## Use Postman to test the server
+![Alt text](image-5.png)
 
-Use Postman to test `GET` and `POST` requests with the Server
+First, we need to create a new user
 
-![Alt text](image.png)
+![Alt text](image-7.png)
 
-![Alt text](image-1.png)
+After we login, we include the `token` in the header then make the request to `/products`. Voila, we can access the resources
+
+![Alt text](image-8.png)
+
+![Alt text](image-9.png)

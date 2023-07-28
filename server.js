@@ -3,6 +3,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const productRoutes = require("./src/routes/productRoutes");
+const userRoutes = require("./src/routes/userRoutes");
+const authMiddleware = require("./src/middlewares/authMiddleware");
 
 dotenv.config();
 const app = express();
@@ -24,7 +26,8 @@ mongoose
   });
 
 // Routes
-app.use("/products", productRoutes);
+app.use("/products", authMiddleware, productRoutes);
+app.use("/users", userRoutes);
 
 // Start the server
 app.listen(PORT, () => {
