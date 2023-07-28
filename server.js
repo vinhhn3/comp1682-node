@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const productRoutes = require("./src/routes/productRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const authMiddleware = require("./src/middlewares/authMiddleware");
+const connectToDatabase = require("./src/config/database");
 
 dotenv.config();
 const app = express();
@@ -15,15 +16,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .catch((err) => {
-    console.error("Error connecting to MongoDB:", err);
-    process.exit(1);
-  });
+connectToDatabase();
 
 // Routes
 app.use("/products", authMiddleware, productRoutes);
