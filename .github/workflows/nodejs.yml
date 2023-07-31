@@ -28,7 +28,5 @@ jobs:
         run: |
           git fetch origin
           git checkout dev
-          git pull origin dev
+          git pull origin feature/${GITHUB_REF##*/}
           git push origin dev
-          git checkout feature/${GITHUB_REF##*/}
-          git rebase dev
