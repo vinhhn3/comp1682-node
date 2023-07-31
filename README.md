@@ -1,118 +1,78 @@
-## Implement cache
+## What Is CORS?
 
-![Alt text](image-16.png)
+CORS is a mechanism that can be found in modern web browsers like Chrome, Firefox, Safari, and Edge. It prevents Domain A from accessing resources on Domain B without explicit permission.
 
-![Alt text](image-17.png)
+According to the MDN Docs, "Cross-Origin Resource Sharing (CORS) is an HTTP-header based mechanism that allows a server to indicate any other origins (domain, scheme, or port) than its own from which a browser should permit loading of resources."
 
-To implement caching in your API using memory-cache, we'll use it to store the results of expensive database queries or calculations temporarily in memory.
-
-This can help reduce the load on the database and improve the API's response time. Let's integrate memory-cache into the API:
-
-## Install the Memory Cache Dependency
-
-Install the memory-cache package
+The permission for which external domains may access resources on Domain B must be defined on Domain B. The permission is set using the Access-Control-Allow-Origin header. For example, if Domain A is example.com and Domain B is mainsite.com, the correct header will be the following:
 
 ```bash
-npm install memory-cache
+Access-Control-Allow-Origin: example.com
 ```
 
-## Create a Cache Middleware
+![Alt text](image-20.png)
 
-In the middlewares folder, create a file named `cacheMiddleware.js`
+## HTTP headers
+
+HTTP headers are channels through which the browser and server pass additional information. There are two cases in which headers are used. In the first, the client browser sends additional information to the server while making a request. In the second case, a server sends additional information to the client along with the response.
+
+The browser may use headers to authenticate with a server. The server, on the other hand, can respond with a header telling the browser which resources it can access. CORS response is sent back to the browser using a header.
+
+The following is an example of a header response for an HTTP request:
+
+```bash
+accept-ranges: "bytes"
+content-length: "785"
+content-type: "text/html; charset=UTF-8"
+date: "Sun, 01 Aug 2021 02:00:35 GMT"
+etag: "W/\"311-4gBYPqEJbr0hYJMBrIkiiBUknS4\"
+```
+
+Each header is made up of a key and a value. The name of the key is case insensitive.
+
+## Add CORS to the project
+
+### Install the CORS Middleware
+
+Install the cors package:
+
+```bash
+npm install cors
+```
+
+### Configure CORS in the Express Server
+
+In the server.js file, configure CORS in your Express server:
 
 ```js
-// middlewares/cacheMiddleware.js
-const cache = require("memory-cache");
+// server.js
 
-function cacheMiddleware(duration) {
-  return (req, res, next) => {
-    const key = "__express__" + req.originalUrl || req.url;
-    const cachedBody = cache.get(key);
+/// ... (other imports)
 
-    if (cachedBody) {
-      return res.json(cachedBody);
-    } else {
-      res.sendResponse = res.json;
-      res.json = (body) => {
-        cache.put(key, body, duration * 1000); // Convert seconds to milliseconds
-        res.sendResponse(body);
-      };
-      next();
-    }
-  };
-}
+const cors = require("cors"); // Import the cors middleware
 
-module.exports = cacheMiddleware;
+// ... (previous code)
+
+// Example with specific CORS options
+const corsOptions = {
+  origin: "https://example.com", // Replace with the allowed origin(s)
+  methods: "GET, POST, PUT, DELETE",
+  allowedHeaders: "Content-Type, Authorization",
+};
+
+app.use(cors(corsOptions));
+
+// ... (remaining code)
 ```
 
-## Apply Caching to the Product Routes
+Using the above example, the API will only accept requests from https://example.com and allow only specific methods and headers.
 
-In the `routes/productRoutes.js` file, apply the cache middleware to the route that retrieves all products:
+For this demo project, we will use `*` for cors options for testing purposes
 
 ```js
-// routes/productRoutes.js
-const express = require("express");
-const router = express.Router();
-const productController = require("../controllers/productController");
-const cacheMiddleware = require("../middlewares/cacheMiddleware");
-
-// Cache the response for 5 minutes (adjust the duration as needed)
-router.get("/", cacheMiddleware(300), productController.getAllProducts);
-
-// ... (other routes)
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 ```
-
-## Clear Cache When Data is Updated
-
-In some cases, you might want to clear the cache when data is updated to ensure that users get the latest information.
-
-For example, when a new product is added or an existing product is updated, you can clear the cache for the `/products` route:
-
-```js
-// controllers/productController.js
-const cache = require("memory-cache");
-
-class ProductController {
-  // ... (other methods)
-
-  async createProduct(req, res) {
-    try {
-      // ... (create product logic)
-
-      // Clear cache for /products route
-      cache.clear();
-
-      res.status(201).json(product);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to create the product" });
-    }
-  }
-
-  async updateProduct(req, res) {
-    try {
-      // ... (update product logic)
-
-      // Clear cache for /products route
-      cache.clear();
-
-      res.json(product);
-    } catch (err) {
-      res.status(500).json({ error: "Unable to update the product" });
-    }
-  }
-
-  // ... (other methods)
-}
-```
-
-With these changes, your API now includes caching using memory-cache. Cached responses will be served from memory for a specified duration, reducing the load on the database and improving the API's performance. Remember to apply caching only to routes where it makes sense to use it and to clear the cache when relevant data is updated to ensure accurate results.
-
-## Test with Postman
-
-The 2nd request is much faster than the first request (around 30 times faster)
-
-First request
-![Alt text](image-18.png)
-
-Second request
-![Alt text](image-19.png)

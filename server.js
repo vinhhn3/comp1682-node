@@ -6,6 +6,7 @@ const userRoutes = require("./src/routes/userRoutes");
 const authMiddleware = require("./src/middlewares/authMiddleware");
 const connectToDatabase = require("./src/config/database");
 const rateLimit = require("express-rate-limit");
+const cors = require("cors"); // Import the cors middleware
 
 dotenv.config();
 const app = express();
@@ -19,6 +20,12 @@ const limiter = rateLimit({
 
 // Apply rate limiting to all requests
 app.use(limiter);
+// Enable cors
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
 // Middleware
 app.use(express.json());
