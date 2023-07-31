@@ -7,6 +7,8 @@ const authMiddleware = require("./src/middlewares/authMiddleware");
 const connectToDatabase = require("./src/config/database");
 const cors = require("cors"); // Import the cors middleware
 const rateLimitMiddleware = require("./src/middlewares/rateLimitMiddleware");
+const swaggerUi = require("swagger-ui-express");
+const specs = require("./src/docs/swagger"); // Import the Swagger configuration
 
 dotenv.config();
 const app = express();
@@ -30,6 +32,9 @@ connectToDatabase();
 // Routes
 app.use("/products", authMiddleware, productRoutes);
 app.use("/users", userRoutes);
+
+// Serve Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 // Start the server
 app.listen(PORT, () => {
