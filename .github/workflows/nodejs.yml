@@ -28,5 +28,6 @@ jobs:
         run: |
           git fetch origin
           git checkout dev
+          git config pull.rebase false
           git pull origin feature/${GITHUB_REF##*/}
           git push origin dev
