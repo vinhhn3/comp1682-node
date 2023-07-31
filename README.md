@@ -1,5 +1,11 @@
 ## Set up Continuous Integration (CI) using GitHub Actions
 
+## Overview
+
+The diagrams below shows a simple CI workflow
+
+![Alt text](image-28.png)
+
 ### Create a Workflow File
 
 In your repository, create a `.github/workflows` folder if it doesn't already exist. Inside this folder, create a new file named `nodejs.yml`. This file will define the GitHub Actions workflow for your Node.js API.
@@ -29,14 +35,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create Pull Request
-        if: success() # Only execute this step if the build is successful
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git checkout dev
-          git pull origin feature/${GITHUB_REF##*/}
-          git push origin dev
+      - name: Merge to Dev
+        uses: "peter-evans/create-pull-request@v5"
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: dev
+          title: "Merge feature branch to dev"
+          body: "Automatically merging feature branch to dev"
+          labels: "auto-merge"
 ```
 
 This workflow ensures that whenever code changes are pushed to a `feature` branch, it will build the Node.js project, install its dependencies, and if the build is successful, create a new pull request merging the changes from the feature branch into a `dev` branch.
@@ -61,6 +67,14 @@ Under "Workflow permissions", choose whether you want the GITHUB_TOKEN to have r
 
 Click Save to apply the settings.
 
+## Create the `dev` branch
+
+Be aware to create `dev` branch by using the command
+
+```bash
+git branch dev main
+```
+
 ## Commit and Push the Workflow
 
 Commit the `nodejs.yml` workflow file and push it to the `main` branch of your repository.
@@ -70,3 +84,11 @@ Commit the `nodejs.yml` workflow file and push it to the `main` branch of your r
 GitHub Actions will automatically detect the new workflow file, and the CI process will start running when you push changes to the main branch. You can check the progress and results of the CI workflow on the "Actions" tab in your GitHub repository.
 
 If all the tests pass successfully, the CI workflow will complete successfully, and you will see a green checkmark indicating the successful build.
+
+![Alt text](image-27.png)
+
+## Next steps
+
+This is just a simple CI workflow. In real scenario, we have to create the complex workflow as shows below
+
+![Alt text](image-29.png)
