@@ -26,9 +26,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git fetch origin
-          git checkout dev
-          git pull
-          git checkout feature/${GITHUB_REF##*/}
-          git rebase dev
-          git push origin feature/${GITHUB_REF##*/}
+          git pull origin feature/${GITHUB_REF##*/}
+          hub pull-request -b feature/${GITHUB_REF##*/} -h dev -m "Automated pull request from feature branch"
