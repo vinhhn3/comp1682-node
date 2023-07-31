@@ -10,12 +10,23 @@ In the config folder, create a file named `rateLimitConfig.js` and move the rate
 
 ```js
 // config/rateLimitConfig.js
-const rateLimit = require("express-rate-limit");
-
-const limiter = rateLimit({
+const rateLimitConfig = {
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Limit each IP to 10 requests per windowMs
-});
+};
+
+module.exports = rateLimitConfig;
+```
+
+## Crate Retelimit Middleware
+
+In the middleware folder, create a file named `rateLimitMiddleware.js` to handle rate limiter
+
+```js
+const rateLimit = require("express-rate-limit");
+const rateLimitConfig = require("../config/rateLimitConfig");
+
+const limiter = rateLimit(rateLimitConfig);
 
 module.exports = limiter;
 ```
@@ -27,12 +38,12 @@ In the server.js file, update the server configuration to use the `rateLimitConf
 ```js
 // server.js
 // ... (previous imports)
-const limiter = require("./config/rateLimitConfig"); // Import rate limiter configuration
+const rateLimitMiddleware = require("./src/middlewares/rateLimitMiddleware"); // import rateLimitMiddleware
 
 // ... (previous code)
 
-// Apply rate limiting and cors to all requests
-app.use(limiter);
+// Apply rate limiting to all requests
+app.use(rateLimitMiddleware);
 
 // ... (remaining code)
 ```
