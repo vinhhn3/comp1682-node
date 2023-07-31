@@ -28,6 +28,5 @@ jobs:
         run: |
           git fetch origin
           git checkout dev
-          git config pull.rebase false
-          git pull origin feature/${GITHUB_REF##*/}
+          git merge feature/${GITHUB_REF##*/} --allow-unrelated-histories
           git push origin dev
