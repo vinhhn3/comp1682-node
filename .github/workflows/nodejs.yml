@@ -21,11 +21,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create Pull Request
-        if: success() # Only execute this step if the build is successful
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge changes to /dev branch
+        if: ${{ success() }}
         run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git checkout dev
-          git pull origin feature/${GITHUB_REF##*/}
+          git merge --no-ff $GITHUB_REF
           git push origin dev
