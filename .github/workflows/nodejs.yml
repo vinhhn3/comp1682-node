@@ -28,5 +28,7 @@ jobs:
         run: |
           git fetch origin
           git checkout dev
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git merge feature/${GITHUB_REF##*/} --allow-unrelated-histories
           git push origin dev
