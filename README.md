@@ -68,6 +68,12 @@ The server can verify the authenticity of the token and extract the user informa
 
 ![Alt text](image-4.png)
 
+## How to store Password securely in Database
+
+https://www.youtube.com/watch?v=zt8Cocdy15c
+
+![Alt text](image-10.png)
+
 ## Install Additional Dependencies
 
 Install the required dependencies for authentication
