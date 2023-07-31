@@ -34,7 +34,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git checkout -b dev
+          git checkout dev
           git pull origin feature/${GITHUB_REF##*/}
           git push origin dev
 ```
